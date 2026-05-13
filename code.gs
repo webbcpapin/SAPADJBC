@@ -457,6 +457,5 @@ function autoPlay(category) {
 // ==================== UTILITIES ====================
 function jsonResponse(data, statusCode) {
   return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHttpStatus(statusCode || 200);
+    .setMimeType(ContentService.MimeType.JSON);
 }
