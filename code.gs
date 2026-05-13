@@ -1,7 +1,9 @@
 // ==================== CONFIGURATION ====================
 const CONFIG = {
   SHEET_ID: 'YOUR_SPREADSHEET_ID',
-  SHEET_NAME: 'DailySpirit'
+  SHEET_NAME: 'DailySpirit',
+  AUDIO_SHEET_NAME: 'AudioFiles',
+  AUDIO_FOLDER_ID: ''
 };
 
 // ==================== WEB APP ====================
@@ -16,6 +18,8 @@ function doGet(e) {
         return getHistory(parseInt(e.parameter.limit) || 20);
       case 'getToday':
         return getTodayContent();
+      case 'listAudio':
+        return listAudioFiles();
       case 'test':
         return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
       default:
@@ -33,6 +37,10 @@ function doPost(e) {
     switch(data.action) {
       case 'save':
         return saveContent(data.data);
+      case 'uploadAudio':
+        return uploadAudioFile(data.data);
+      case 'deleteAudio':
+        return deleteAudioFile(data.id);
       default:
         return jsonResponse({ error: 'Unknown action' }, 400);
     }
@@ -143,6 +151,31 @@ function getFallbackContent(category) {
   ];
 
   const songs = {
+    'bell-pembuka': {
+      title: "Bell Pembuka",
+      text: "Bell pembuka siap diputar. Upload file bell pembuka pada kategori ini agar aplikasi memakai audio resmi.",
+      source: "Mode lagu - upload MP3/WAV untuk audio resmi"
+    },
+    'mars-djbc': {
+      title: "Mars DJBC",
+      text: "Mars DJBC siap diputar. Upload file Mars DJBC pada kategori ini agar aplikasi memakai audio resmi.",
+      source: "Mode lagu - upload MP3/WAV untuk audio resmi"
+    },
+    'lagu-tak-pernah-ku-ragu': {
+      title: "Lagu Orisinal Tak Pernah Ku Ragu",
+      text: "Lagu orisinal Tak Pernah Ku Ragu siap diputar. Upload satu atau beberapa file audio pada kategori ini untuk rotasi harian.",
+      source: "Mode lagu - upload MP3/WAV untuk audio resmi"
+    },
+    'mars-kemenkeu': {
+      title: "Mars Kementerian Keuangan",
+      text: "Mars Kementerian Keuangan siap diputar. Upload file Mars Kementerian Keuangan pada kategori ini agar aplikasi memakai audio resmi.",
+      source: "Mode lagu - upload MP3/WAV untuk audio resmi"
+    },
+    'lagu-karya-pegawai-bc': {
+      title: "Lagu Karya Pegawai Bea Cukai",
+      text: "Lagu karya pegawai Bea Cukai siap diputar. Upload beberapa file audio agar aplikasi dapat memilih dan merotasi lagu setiap hari.",
+      source: "Mode lagu - upload MP3/WAV untuk audio resmi"
+    },
     'indonesia-raya': {
       title: "Lagu Kebangsaan Indonesia Raya",
       text: "Silakan berdiri tegap. Pemutar akan memainkan lagu Indonesia Raya. Upload file audio resmi pada kategori Indonesia Raya agar aplikasi memakai lagu lengkap.",
@@ -156,6 +189,7 @@ function getFallbackContent(category) {
   };
 
   if (category === 'sapa-pagi') return { title: "Sapa Pagi", text: "Selamat pagi, rekan-rekan Direktorat Jenderal Bea dan Cukai. Mari membuka hari dengan niat baik, integritas, dan semangat pelayanan. Ke Pangkalbalam membawa bekal, singgah sebentar membeli roti. Mari bekerja dengan akal, jujur melayani sepenuh hati.", source: "SAPA DJBC" };
+  if (category === 'pengantar-indonesia-raya') return { title: "Pengantar Indonesia Raya", text: "Bapak dan Ibu, sebentar lagi akan diperdengarkan Lagu Kebangsaan Indonesia Raya. Dimohon untuk berdiri dengan sikap sempurna.", source: "SAPA DJBC" };
   if (category === 'doa') return pickDaily_('doa', doaItems);
   if (category === 'motivasi') return pickDaily_('motivasi', motivasiItems);
   if (category === 'apresiasi') return pickDaily_('apresiasi', apresiasiItems);
@@ -241,7 +275,10 @@ function createDailyTriggers() {
     'autoPlayIndonesiaRaya',
     'autoPlayMotivasi',
     'autoPlayApresiasi',
-    'autoPlaySapaSore'
+    'autoPlaySapaSore',
+    'autoPlayMorningSequence',
+    'autoPlayIndonesiaSequence',
+    'autoPlayAfternoonSequence'
   ];
   triggers.forEach(t => {
     if (managedHandlers.includes(t.getHandlerFunction())) {
@@ -249,13 +286,140 @@ function createDailyTriggers() {
     }
   });
 
-  ScriptApp.newTrigger('autoPlaySapaPagi').timeBased().everyDays(1).atHour(8).nearMinute(0).create();
-  ScriptApp.newTrigger('autoPlayLaguOrisinal').timeBased().everyDays(1).atHour(8).nearMinute(0).create();
-  ScriptApp.newTrigger('autoPlayDoa').timeBased().everyDays(1).atHour(8).nearMinute(0).create();
-  ScriptApp.newTrigger('autoPlayMotivasi').timeBased().everyDays(1).atHour(8).nearMinute(0).create();
-  ScriptApp.newTrigger('autoPlayIndonesiaRaya').timeBased().everyDays(1).atHour(10).nearMinute(0).create();
-  ScriptApp.newTrigger('autoPlayApresiasi').timeBased().everyDays(1).atHour(16).nearMinute(45).create();
-  ScriptApp.newTrigger('autoPlaySapaSore').timeBased().everyDays(1).atHour(16).nearMinute(45).create();
+  ScriptApp.newTrigger('autoPlayMorningSequence').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).nearMinute(0).create();
+  ScriptApp.newTrigger('autoPlayMorningSequence').timeBased().onWeekDay(ScriptApp.WeekDay.TUESDAY).atHour(8).nearMinute(0).create();
+  ScriptApp.newTrigger('autoPlayMorningSequence').timeBased().onWeekDay(ScriptApp.WeekDay.WEDNESDAY).atHour(8).nearMinute(0).create();
+  ScriptApp.newTrigger('autoPlayMorningSequence').timeBased().onWeekDay(ScriptApp.WeekDay.THURSDAY).atHour(8).nearMinute(0).create();
+  ScriptApp.newTrigger('autoPlayMorningSequence').timeBased().onWeekDay(ScriptApp.WeekDay.FRIDAY).atHour(8).nearMinute(0).create();
+
+  ScriptApp.newTrigger('autoPlayIndonesiaSequence').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(10).nearMinute(0).create();
+  ScriptApp.newTrigger('autoPlayIndonesiaSequence').timeBased().onWeekDay(ScriptApp.WeekDay.TUESDAY).atHour(10).nearMinute(0).create();
+  ScriptApp.newTrigger('autoPlayIndonesiaSequence').timeBased().onWeekDay(ScriptApp.WeekDay.WEDNESDAY).atHour(10).nearMinute(0).create();
+  ScriptApp.newTrigger('autoPlayIndonesiaSequence').timeBased().onWeekDay(ScriptApp.WeekDay.THURSDAY).atHour(10).nearMinute(0).create();
+  ScriptApp.newTrigger('autoPlayIndonesiaSequence').timeBased().onWeekDay(ScriptApp.WeekDay.FRIDAY).atHour(10).nearMinute(0).create();
+
+  ScriptApp.newTrigger('autoPlayAfternoonSequence').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(16).nearMinute(45).create();
+  ScriptApp.newTrigger('autoPlayAfternoonSequence').timeBased().onWeekDay(ScriptApp.WeekDay.TUESDAY).atHour(16).nearMinute(45).create();
+  ScriptApp.newTrigger('autoPlayAfternoonSequence').timeBased().onWeekDay(ScriptApp.WeekDay.WEDNESDAY).atHour(16).nearMinute(45).create();
+  ScriptApp.newTrigger('autoPlayAfternoonSequence').timeBased().onWeekDay(ScriptApp.WeekDay.THURSDAY).atHour(16).nearMinute(45).create();
+  ScriptApp.newTrigger('autoPlayAfternoonSequence').timeBased().onWeekDay(ScriptApp.WeekDay.FRIDAY).atHour(16).nearMinute(45).create();
+}
+
+// ==================== AUDIO STORAGE ====================
+function getAudioFolder_() {
+  if (CONFIG.AUDIO_FOLDER_ID) {
+    return DriveApp.getFolderById(CONFIG.AUDIO_FOLDER_ID);
+  }
+
+  const folderName = 'SAPA DJBC Audio';
+  const existing = DriveApp.getFoldersByName(folderName);
+  if (existing.hasNext()) return existing.next();
+  return DriveApp.createFolder(folderName);
+}
+
+function getAudioSheet_() {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  let sheet = ss.getSheetByName(CONFIG.AUDIO_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.AUDIO_SHEET_NAME);
+    sheet.appendRow([
+      'Tanggal', 'Kategori', 'Role', 'Nama File', 'Mime Type',
+      'Ukuran', 'File ID', 'URL', 'ID', 'Timestamp', 'Aktif'
+    ]);
+    sheet.getRange(1, 1, 1, 11).setFontWeight('bold')
+      .setBackground('#1a5f4a').setFontColor('white');
+    sheet.autoResizeColumns(1, 11);
+  }
+  return sheet;
+}
+
+function uploadAudioFile(data) {
+  if (!data || !data.dataUrl) {
+    return jsonResponse({ error: 'Data audio kosong' }, 400);
+  }
+
+  const match = String(data.dataUrl).match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    return jsonResponse({ error: 'Format audio tidak valid' }, 400);
+  }
+
+  const mimeType = match[1] || data.mimeType || 'audio/mpeg';
+  if (!mimeType.toLowerCase().startsWith('audio/')) {
+    return jsonResponse({ error: 'File harus bertipe audio' }, 400);
+  }
+
+  const bytes = Utilities.base64Decode(match[2]);
+  const safeName = String(data.name || 'audio').replace(/[\\/:*?"<>|]/g, '-');
+  const category = data.category || 'lagu-orisinal';
+  const role = data.role || 'primary';
+  const id = String(Date.now()) + '_' + Utilities.getUuid().slice(0, 8);
+  const fileName = category + '_' + role + '_' + id + '_' + safeName;
+  const blob = Utilities.newBlob(bytes, mimeType, fileName);
+  const file = getAudioFolder_().createFile(blob);
+
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {
+    console.warn('Tidak bisa mengatur sharing file audio:', e);
+  }
+
+  const url = 'https://drive.google.com/uc?export=download&id=' + file.getId();
+  const today = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd');
+  getAudioSheet_().appendRow([
+    today, category, role, safeName, mimeType,
+    bytes.length, file.getId(), url, id, new Date(), true
+  ]);
+
+  return jsonResponse({
+    success: true,
+    file: {
+      id, name: safeName, category, role, mimeType,
+      size: bytes.length, fileId: file.getId(), url,
+      date: new Date().toISOString(), remote: true
+    }
+  });
+}
+
+function listAudioFiles() {
+  const sheet = getAudioSheet_();
+  const data = sheet.getDataRange().getValues();
+  const files = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][10] === false || data[i][10] === 'FALSE') continue;
+    files.push({
+      date: data[i][0],
+      category: data[i][1],
+      role: data[i][2],
+      name: data[i][3],
+      mimeType: data[i][4],
+      size: data[i][5],
+      fileId: data[i][6],
+      url: data[i][7],
+      id: data[i][8],
+      timestamp: data[i][9],
+      remote: true
+    });
+  }
+  return jsonResponse({ data: files, total: files.length });
+}
+
+function deleteAudioFile(id) {
+  if (!id) return jsonResponse({ error: 'ID audio kosong' }, 400);
+
+  const sheet = getAudioSheet_();
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][8]) === String(id)) {
+      sheet.getRange(i + 1, 11).setValue(false);
+      try {
+        DriveApp.getFileById(data[i][6]).setTrashed(true);
+      } catch (e) {
+        console.warn('Tidak bisa menghapus file Drive:', e);
+      }
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ error: 'Audio tidak ditemukan' }, 404);
 }
 
 function autoPlaySapaPagi() { autoPlay('sapa-pagi'); }
@@ -265,6 +429,22 @@ function autoPlayIndonesiaRaya() { autoPlay('indonesia-raya'); }
 function autoPlayMotivasi() { autoPlay('motivasi'); }
 function autoPlayApresiasi() { autoPlay('apresiasi'); }
 function autoPlaySapaSore() { autoPlay('sapa-sore'); }
+
+function autoPlayMorningSequence() {
+  autoPlaySequence(['bell-pembuka', 'mars-djbc', 'sapa-pagi', 'doa', 'motivasi', 'lagu-tak-pernah-ku-ragu']);
+}
+
+function autoPlayIndonesiaSequence() {
+  autoPlaySequence(['pengantar-indonesia-raya', 'indonesia-raya']);
+}
+
+function autoPlayAfternoonSequence() {
+  autoPlaySequence(['bell-pembuka', 'sapa-sore', 'apresiasi', 'mars-kemenkeu', 'lagu-karya-pegawai-bc']);
+}
+
+function autoPlaySequence(categories) {
+  categories.forEach(category => autoPlay(category));
+}
 
 function autoPlay(category) {
   try {
